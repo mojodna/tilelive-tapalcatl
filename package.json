@@ -1,0 +1,18 @@
+{
+  "name": "tilelive-tapalcatl",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "locking-cache": "^0.4.1",
+    "lru-cache": "^4.1.1",
+    "node-fetch": "^2.0.0-alpha.9",
+    "node-stream-zip": "^1.4.2",
+    "semver": "^5.5.0"
+  }
+}
