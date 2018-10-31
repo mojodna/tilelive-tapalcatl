@@ -1,89 +1,57 @@
-const constants = require("constants");
 const url = require("url");
 
-const semver = require("semver");
-const StreamZip = require("node-stream-zip");
-
-const remoteFs = require("./lib/remote_fs");
+const clone = require("clone");
+const tapalcatl = require("tapalcatl");
+const toArray = require("stream-to-array");
 
 process.on("unhandledRejection", err => {
   throw err;
 });
 
-StreamZip.setFs(remoteFs);
-
 module.exports = (tilelive, options) => {
   var Tapalcatl = function(uri, callback) {
-    // TODO clean this up and clone uri
-    uri.protocol = uri.protocol.replace(/tapalcatl\+/, "");
+    const source = clone(uri);
 
-    if (semver.satisfies(process.version, ">=0.11.0")) {
-      // Node 0.12 changes the behavior of url.parse such that components are
-      // url-encoded
-      uri.hash = uri.hash && decodeURIComponent(uri.hash);
-      uri.pathname = decodeURIComponent(uri.pathname);
-      uri.path = decodeURIComponent(uri.path);
-      uri.href = decodeURIComponent(uri.href);
+    source.protocol = source.protocol.replace(/\w+\+/, "");
+
+    source.hash = source.hash && decodeURIComponent(source.hash);
+    source.pathname = decodeURIComponent(source.pathname);
+    source.path = decodeURIComponent(source.path);
+    source.href = decodeURIComponent(source.href);
+
+    // TODO pull format, scale, variant from source.query
+
+    this.source = tapalcatl(url.format(source));
+
+    return callback(null, this);
+  };
+
+  Tapalcatl.prototype.getTile = async function(z, x, y, callback) {
+    const { body, headers } = await this.source.getTile(z, x, y);
+
+    // convert headers from a list to an object
+    const h = headers.reduce((acc, h) => {
+      const k = Object.keys(h).pop();
+      acc[k] = h[k];
+
+      return acc;
+    }, {});
+
+    if (body != null) {
+      return callback(null, Buffer.concat(await toArray(body)), h);
     }
 
-    this.uri = url.format(uri);
-
-    return setImmediate(callback, null, this);
+    return callback();
   };
 
-  Tapalcatl.prototype.getTile = function(z, x, y, callback) {
-    const uri = url.format(this.uri)
-    const zoomOffset = 5;
+  Tapalcatl.prototype.getInfo = async function(callback) {
+    const meta = await this.source.meta();
+    const formats = Object.keys(meta.formats);
+    const format = formats.pop();
 
-    // TODO cache this and close when evicted
-    const zip = new StreamZip({
-      chunkSize: 1024 * 1024,
-      file: this.uri
-        .replace(/{z}/, z - zoomOffset)
-        .replace(/{x}/, Math.floor(x / Math.pow(2, zoomOffset)))
-        .replace(/{y}/, Math.floor(y / Math.pow(2, zoomOffset)))
-    });
-
-    zip.on("error", err => {
-      if (err.errno === -constants.ENOENT) {
-        return callback();
-      }
-
-      return callback(new Error(err))
-    });
-
-    const filename = `${z}/${x}/${y}.mvt`;
-
-    zip.on("ready", () => {
-      // check if the tile exists
-      if (zip.entries()[filename] == null) {
-        return callback(null, null);
-      }
-
-      zip.stream(filename, (err, tile) => {
-        if (err) {
-          return callback(err);
-        }
-
-        const chunks = [];
-
-        tile.on("data", chunk => chunks.push(chunk));
-
-        tile.on("end", () => callback(null, Buffer.concat(chunks), {
-          // TODO headers from sidecar metadata + info
-          "Content-Type": "application/vnd.mapbox-vector-tile"
-        }));
-      });
-    });
-  };
-
-  Tapalcatl.prototype.getInfo = function(callback) {
-    // TODO extract this from the source URI
-    return setImmediate(callback, null, {
-      minzoom: 14,
-      maxzoom: 14,
-      tilejson: "2.2.0",
-      format: "pbf"
+    return callback(null, {
+      ...meta,
+      format
     });
   };
 
@@ -94,7 +62,7 @@ module.exports = (tilelive, options) => {
   Tapalcatl.registerProtocols = function(tilelive) {
     tilelive.protocols["tapalcatl+http:"] = Tapalcatl;
     tilelive.protocols["tapalcatl+https:"] = Tapalcatl;
-    // TODO tapalcatl+s3 for requester-pays support
+    tilelive.protocols["tapalcatl+s3:"] = Tapalcatl;
   };
 
   Tapalcatl.registerProtocols(tilelive);
