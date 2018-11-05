@@ -60,6 +60,7 @@ module.exports = (tilelive, options) => {
   };
 
   Tapalcatl.registerProtocols = function(tilelive) {
+    tilelive.protocols["tapalcatl+file:"] = Tapalcatl;
     tilelive.protocols["tapalcatl+http:"] = Tapalcatl;
     tilelive.protocols["tapalcatl+https:"] = Tapalcatl;
     tilelive.protocols["tapalcatl+s3:"] = Tapalcatl;
