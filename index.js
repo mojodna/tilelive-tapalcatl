@@ -6,10 +6,6 @@ const clone = require("clone");
 const tapalcatl = require("tapalcatl");
 const toArray = require("stream-to-array");
 
-process.on("unhandledRejection", err => {
-  throw err;
-});
-
 class Tapalcatl {
   constructor(uri, callback) {
     const source = clone(uri);
