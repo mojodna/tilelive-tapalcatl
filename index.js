@@ -23,7 +23,13 @@ class Tapalcatl {
   }
 
   async getTile(z, x, y, callback) {
-    const tile = await this.source.getTile(z, x, y);
+    let tile;
+
+    try {
+      tile = await this.source.getTile(z, x, y);
+    } catch (err) {
+      return callback(err);
+    }
 
     if (tile == null) {
       return callback();
