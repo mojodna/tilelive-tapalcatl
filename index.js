@@ -17,7 +17,11 @@ class Tapalcatl {
     source.href = decodeURIComponent(source.href);
 
     // TODO pull format, scale, variant from source.query
-    this.source = tapalcatl(url.format(source));
+    try {
+      this.source = tapalcatl(url.format(source));
+    } catch (err) {
+      return callback(err);
+    }
 
     return callback(null, this);
   }
