@@ -23,7 +23,13 @@ class Tapalcatl {
   }
 
   async getTile(z, x, y, callback) {
-    const { body, headers } = await this.source.getTile(z, x, y);
+    const tile = await this.source.getTile(z, x, y);
+
+    if (tile == null) {
+      return callback();
+    }
+
+    const { body, headers } = tile;
 
     // convert headers from a list to an object
     const h = headers.reduce((acc, h) => {
